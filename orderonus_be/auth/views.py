@@ -2,14 +2,19 @@ import json
 from django.contrib.auth.models import User
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse, JsonResponse
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_http_methods, require_POST
 from django.contrib.auth import authenticate, login
 
 
 # Create your views here.
-@require_POST
+@require_http_methods(["GET", "POST"])
 def user_login(request: HttpRequest) -> HttpResponse:
     """Log in for the user"""
+    if request.method == "GET":
+        return JsonResponse(
+            {"error": "Please log in first"},
+            status=405,
+        )
     post_dict = json.loads(request.body)
     username = post_dict.get("username", None)
     password = post_dict.get("password", None)
