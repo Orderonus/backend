@@ -29,7 +29,7 @@ class LoginTest(TestCase):
         response = self.client.post("/accounts/login/", {"password": self.password})
         self.assertEqual(response.status_code, 400, response.content)
         self.assertEqual(
-            response.json(), {"message": "Username or password not provided"}
+            response.json(), {"error": "Username or password not provided"}
         )
 
     def test_login_fail_no_password(self: "LoginTest") -> None:
@@ -37,7 +37,7 @@ class LoginTest(TestCase):
         response = self.client.post("/accounts/login/", {"username": self.username})
         self.assertEqual(response.status_code, 400, response.content)
         self.assertEqual(
-            response.json(), {"message": "Username or password not provided"}
+            response.json(), {"error": "Username or password not provided"}
         )
 
     def test_login_fail_user_does_not_exist(self: "LoginTest") -> None:
@@ -47,7 +47,7 @@ class LoginTest(TestCase):
         )
         self.assertEqual(response.status_code, 404, response.content)
         self.assertEqual(
-            response.json(), {"message": "User does not exist or Password is incorrect"}
+            response.json(), {"error": "User does not exist or Password is incorrect"}
         )
 
     def test_login_fail_user_password_incorrect(self: "LoginTest") -> None:
@@ -57,7 +57,7 @@ class LoginTest(TestCase):
         )
         self.assertEqual(response.status_code, 404, response.content)
         self.assertEqual(
-            response.json(), {"message": "User does not exist or Password is incorrect"}
+            response.json(), {"error": "User does not exist or Password is incorrect"}
         )
 
     def test_login_success(self: "LoginTest") -> None:
@@ -66,7 +66,7 @@ class LoginTest(TestCase):
             "/accounts/login/", {"username": self.username, "password": self.password}
         )
         self.assertEqual(response.status_code, 200, response.content)
-        self.assertEqual(response.json(), {"message": "User logged in successfully"})
+        self.assertEqual(response.json(), {"data": "User logged in successfully"})
 
 
 class RegisterTest(TestCase):
@@ -86,7 +86,7 @@ class RegisterTest(TestCase):
             "/accounts/register/", {"username": self.username, "password": "1234"}
         )
         self.assertEqual(response.status_code, 409, response.content)
-        self.assertEqual(response.json(), {"message": "User already exists"})
+        self.assertEqual(response.json(), {"error": "User already exists"})
 
     def test_register_fail_method_not_allowed(self: "RegisterTest") -> None:
         """Test if the registration fails if the method is incorrect"""
@@ -98,14 +98,14 @@ class RegisterTest(TestCase):
         response = self.client.post("/accounts/register/", {"password": "1234"})
         self.assertEqual(response.status_code, 400, response.content)
         self.assertEqual(
-            response.json(), {"message": "Username or password not provided"}
+            response.json(), {"error": "Username or password not provided"}
         )
 
     def test_register_fail_no_password(self: "RegisterTest") -> None:
         response = self.client.post("/accounts/register/", {"username": "test"})
         self.assertEqual(response.status_code, 400, response.content)
         self.assertEqual(
-            response.json(), {"message": "Username or password not provided"}
+            response.json(), {"error": "Username or password not provided"}
         )
 
     def test_register_success(self: "RegisterTest") -> None:
@@ -116,4 +116,4 @@ class RegisterTest(TestCase):
             "/accounts/register/", {"username": username, "password": password}
         )
         self.assertEqual(response.status_code, 201, response.content)
-        self.assertEqual(response.json(), {"message": "User created successfully"})
+        self.assertEqual(response.json(), {"data": "User created successfully"})

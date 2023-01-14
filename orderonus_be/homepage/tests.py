@@ -7,4 +7,4 @@ class HomepageTest(TestCase):
         """Check if the homepage returns a 200 status code"""
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"message": "Server is up and running"})
+        self.assertEqual(response.json(), {"data": "Server is up and running"})

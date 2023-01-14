@@ -6,7 +6,7 @@ from django.views.static import serve
 # Create your views here.
 def homepage(_: HttpRequest) -> HttpResponse:
     """Home page to check server liveness"""
-    return JsonResponse({"message": "Server is up and running"})
+    return JsonResponse({"data": "Server is up and running"})
 
 
 def serve_static(request: HttpRequest, path: str) -> HttpResponse:

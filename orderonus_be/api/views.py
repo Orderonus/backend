@@ -1,13 +1,9 @@
 import json
-from datetime import datetime
-
-from django.db import transaction
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse, JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 from django.contrib.auth.decorators import login_required
 from django.utils.timezone import now
-from django.db.utils import IntegrityError
 
 from .models import Order, OrderDishRelation, Dish, DishModifier, Store
 from .utils import get_store
