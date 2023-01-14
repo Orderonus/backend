@@ -107,3 +107,6 @@ dist
 # Python
 *.pyc
 env/
+
+# Ignore db
+*.sqlite3
