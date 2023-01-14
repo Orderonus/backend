@@ -26,7 +26,11 @@ class LoginTest(TestCase):
 
     def test_login_fail_no_username(self: "LoginTest") -> None:
         """Check if the login fails if there is no username"""
-        response = self.client.post("/accounts/login/", {"password": self.password})
+        response = self.client.post(
+            "/accounts/login/",
+            {"password": self.password},
+            content_type="application/json",
+        )
         self.assertEqual(response.status_code, 400, response.content)
         self.assertEqual(
             response.json(), {"error": "Username or password not provided"}
@@ -34,7 +38,11 @@ class LoginTest(TestCase):
 
     def test_login_fail_no_password(self: "LoginTest") -> None:
         """Check if the login fails if there is no password"""
-        response = self.client.post("/accounts/login/", {"username": self.username})
+        response = self.client.post(
+            "/accounts/login/",
+            {"username": self.username},
+            content_type="application/json",
+        )
         self.assertEqual(response.status_code, 400, response.content)
         self.assertEqual(
             response.json(), {"error": "Username or password not provided"}
@@ -43,7 +51,9 @@ class LoginTest(TestCase):
     def test_login_fail_user_does_not_exist(self: "LoginTest") -> None:
         """Check if the login fails correctly if the user does not exist"""
         response = self.client.post(
-            "/accounts/login/", {"username": "test2", "password": self.password}
+            "/accounts/login/",
+            {"username": "test2", "password": self.password},
+            content_type="application/json",
         )
         self.assertEqual(response.status_code, 404, response.content)
         self.assertEqual(
@@ -53,7 +63,9 @@ class LoginTest(TestCase):
     def test_login_fail_user_password_incorrect(self: "LoginTest") -> None:
         """Check if the login fails correctly if the user password is wrong"""
         response = self.client.post(
-            "/accounts/login/", {"username": self.username, "password": "test2"}
+            "/accounts/login/",
+            {"username": self.username, "password": "test2"},
+            content_type="application/json",
         )
         self.assertEqual(response.status_code, 404, response.content)
         self.assertEqual(
@@ -63,7 +75,9 @@ class LoginTest(TestCase):
     def test_login_success(self: "LoginTest") -> None:
         """Check if the login works"""
         response = self.client.post(
-            "/accounts/login/", {"username": self.username, "password": self.password}
+            "/accounts/login/",
+            {"username": self.username, "password": self.password},
+            content_type="application/json",
         )
         self.assertEqual(response.status_code, 200, response.content)
         self.assertEqual(response.json(), {"data": "User logged in successfully"})
@@ -83,7 +97,9 @@ class RegisterTest(TestCase):
     def test_register_fail_duplicate_username(self: "RegisterTest") -> None:
         """Test if the registration fails if there is a duplicated username"""
         response = self.client.post(
-            "/accounts/register/", {"username": self.username, "password": "1234"}
+            "/accounts/register/",
+            {"username": self.username, "password": "1234"},
+            content_type="application/json",
         )
         self.assertEqual(response.status_code, 409, response.content)
         self.assertEqual(response.json(), {"error": "User already exists"})
@@ -95,14 +111,22 @@ class RegisterTest(TestCase):
 
     def test_register_fail_no_username(self: "RegisterTest") -> None:
         """Test if the registration fails if there is no username"""
-        response = self.client.post("/accounts/register/", {"password": "1234"})
+        response = self.client.post(
+            "/accounts/register/",
+            {"password": "1234"},
+            content_type="application/json",
+        )
         self.assertEqual(response.status_code, 400, response.content)
         self.assertEqual(
             response.json(), {"error": "Username or password not provided"}
         )
 
     def test_register_fail_no_password(self: "RegisterTest") -> None:
-        response = self.client.post("/accounts/register/", {"username": "test"})
+        response = self.client.post(
+            "/accounts/register/",
+            {"username": "test"},
+            content_type="application/json",
+        )
         self.assertEqual(response.status_code, 400, response.content)
         self.assertEqual(
             response.json(), {"error": "Username or password not provided"}
@@ -113,7 +137,9 @@ class RegisterTest(TestCase):
         username = "test2"
         password = "password"
         response = self.client.post(
-            "/accounts/register/", {"username": username, "password": password}
+            "/accounts/register/",
+            {"username": username, "password": password},
+            content_type="application/json",
         )
         self.assertEqual(response.status_code, 201, response.content)
         self.assertEqual(response.json(), {"data": "User created successfully"})
