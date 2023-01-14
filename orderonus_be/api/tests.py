@@ -85,6 +85,71 @@ class GetOrdersTest(TestCase):
         )
 
 
+class CompleteOrderTest(TestCase):
+    def setUp(self) -> None:
+        self.maxDiff = None
+        self.password = "password"
+        self.username = "username"
+        self.user1 = User.objects.create_user(
+            username=self.username, password=self.password
+        )
+        self.user1.save()
+
+        self.order = Order.objects.create(
+            name="Order",
+            isOnline=True,
+            isCompleted=False,
+            created_at=timezone.now(),
+        )
+        self.order.save()
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        Order.objects.all().delete()
+        User.objects.all().delete()
+        return super().tearDown()
+
+    def login(self) -> bool:
+        """Log in as the user"""
+        return self.client.login(username=self.username, password=self.password)
+
+    def test_complete_order_fail_no_login(self) -> None:
+        """Check if users who are not logged in cannot complete the order"""
+        response = self.client.post(
+            f"/api/complete_order/",
+            {
+                "order_id": self.order.id,
+                "is_completed": True,
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+
+    def test_complete_order_fail_empty_order(self) -> True:
+        """Check if users who are logged in cannot complete an order that does not exist"""
+        self.assertTrue(self.login(), "Login failed")
+        response = self.client.post(
+            f"/api/complete_order/",
+            {
+                "is_completed": True,
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"error": "Missing parameters"})
+
+    def test_complete_order_fail_order_does_not_exist(self) -> None:
+        """Check if users who are logged in cannot complete an order that does not exist"""
+        self.assertTrue(self.login(), "Login failed")
+        response = self.client.post(
+            f"/api/complete_order/",
+            {
+                "order_id": self.order.id + 1,
+                "is_completed": True,
+            },
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json(), {"error": "Order not found"})
+
+
 class DishAvailableTest(TestCase):
     def setUp(self: "DishAvailableTest") -> None:
         self.maxDiff = None

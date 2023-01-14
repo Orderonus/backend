@@ -53,7 +53,19 @@ def order_by_id(request: HttpRequest, order_id: int) -> HttpResponse:
 @login_required
 def complete_order(request: HttpRequest) -> HttpResponse:
     """Mark the order as complete"""
-    return JsonResponse()
+    order_id = request.POST.get("order_id", None)
+    is_completed = request.POST.get("is_completed", None)
+    if None in [order_id, is_completed]:
+        return JsonResponse({"error": "Missing parameters"}, status=400)
+    try:
+        order = Order.objects.get(id=order_id)
+    except Order.DoesNotExist:
+        return JsonResponse({"error": "Order not found"}, status=404)
+
+    order.is_completed = is_completed
+    order.save()
+
+    return JsonResponse({"data": "Order updated successfully"})
 
 
 @require_POST
