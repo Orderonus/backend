@@ -19,6 +19,9 @@ class Store(models.Model):
             "image": self.image.url if self.image else None,
         }
 
+    def __str__(self: "Store") -> str:
+        return f"Store: {self.name} by {self.user.username}"
+
 
 # Create your models here.
 class Dish(models.Model):
@@ -45,6 +48,9 @@ class Dish(models.Model):
             ],
         }
 
+    def __str__(self: "Dish") -> str:
+        return f"Dish: {self.name} ({self.store})"
+
 
 class DishModifier(models.Model):
     id = models.AutoField(primary_key=True)
@@ -61,6 +67,9 @@ class DishModifier(models.Model):
             "price": self.price,
             "is_available": self.is_available,
         }
+
+    def __str__(self: "DishModifier") -> str:
+        return f"DishModifier: {self.name} ({self.dish} in {self.dish.store})"
 
 
 class Order(models.Model):
@@ -85,6 +94,9 @@ class Order(models.Model):
             ),
         }
 
+    def __str__(self: "Order") -> str:
+        return f"Order: {self.id} ({self.store})"
+
 
 class OrderDishRelation(models.Model):
     dish = models.ForeignKey(Dish, on_delete=models.CASCADE)
@@ -98,7 +110,8 @@ class OrderDishRelation(models.Model):
         return {
             "dish": self.dish.to_dict(),
             "quantity": self.quantity,
-            "dish_modifiers": list(
-                map(lambda x: x.to_dict(), self.modifiers.all())
-            ),
+            "dish_modifiers": list(map(lambda x: x.to_dict(), self.modifiers.all())),
         }
+
+    def __str__(self: "OrderDishRelation") -> str:
+        return f"OrderDishRelation: {self.dish} ({self.order})"
