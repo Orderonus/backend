@@ -60,7 +60,17 @@ def complete_order(request: HttpRequest) -> HttpResponse:
 @login_required
 def available(request: HttpRequest) -> HttpResponse:
     """Mark the dish as available / unavailable"""
-    return JsonResponse()
+    dish_id = request.POST.get("dish_id", None)
+    is_available = request.POST.get("is_available", None)
+    if (dish_id is None) or (is_available is None):
+        return JsonResponse({"error": "Missing parameters"}, status=400)
+    dish = Dish.objects.get(id=dish_id)
+    if dish is None:
+        return JsonResponse({"error": "Dish not found"}, status=404)
+
+    dish.is_available = is_available
+    dish.save()
+    return JsonResponse({"data": "Dish updated successfully"})
 
 
 @require_POST

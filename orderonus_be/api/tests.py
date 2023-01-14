@@ -85,8 +85,67 @@ class GetOrdersTest(TestCase):
         )
 
 
-class GetDishTest(TestCase):
+class DishAvailableTest(TestCase):
+    def setUp(self: "DishAvailableTest") -> None:
+        self.maxDiff = None
+        self.password = "password"
+        self.username = "username"
+        self.user1 = User.objects.create_user(
+            username=self.username, password=self.password
+        )
+        self.user1.save()
 
+        self.dish = Dish.objects.create(
+            name="Ramen",
+            price=10000,
+            description="A bowl of ramen",
+        )
+
+        self.dish.save()
+
+    def tearDown(self) -> None:
+        Dish.objects.all().delete()
+        User.objects.all().delete()
+        return super().tearDown()
+
+    def login(self) -> bool:
+        return self.client.login(username=self.username, password=self.password)
+
+    def test_update_available_fail_no_login(self) -> None:
+        """Check if users who are not logged in cannot update the dish"""
+        response = self.client.post(
+            f"/api/available/", {"dish_id": self.dish.id, "is_available": False}
+        )
+        self.assertEqual(response.status_code, 302)
+
+    def test_update_available_fail_no_dish(self) -> None:
+        """Check if users who are logged in cannot update a dish that does not exist"""
+        self.assertTrue(self.login(), "Login failed")
+        response = self.client.post(f"/api/available/", {"is_available": False})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"error": "Missing parameters"})
+
+    def test_update_available_fail_no_availability(self) -> None:
+        """Check if users who are logged in cannot update a dish without specifying availability"""
+        self.assertTrue(self.login(), "Login failed")
+        response = self.client.post(f"/api/available/", {"dish_id": self.dish.id})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json(), {"error": "Missing parameters"})
+
+    def test_update_available_success(self) -> None:
+        """Check if users who are logged in can update the dish"""
+        self.assertTrue(self.login(), "Login failed")
+        self.assertTrue(Dish.objects.filter(id=self.dish.id).get().is_available)
+        response = self.client.post(
+            f"/api/available/", {"dish_id": self.dish.id, "is_available": False}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"data": "Dish updated successfully"})
+
+        self.assertFalse(Dish.objects.filter(id=self.dish.id).get().is_available)
+
+
+class GetDishTest(TestCase):
     def setUp(self) -> None:
 
         # Create dish 1
