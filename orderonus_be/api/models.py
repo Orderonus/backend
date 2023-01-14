@@ -10,7 +10,7 @@ class Dish(models.Model):
     is_available = models.BooleanField(default=True)
 
 
-class DishModifieres(models.Model):
+class DishModifier(models.Model):
     dish = models.ForeignKey(Dish, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     price = models.BigIntegerField()
@@ -21,9 +21,10 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     name = models.CharField(max_length=100)
     type = models.IntegerField()
-    status = models.IntegerField() #IsComplete / AtKitchen
+    status = models.IntegerField()  # IsComplete / AtKitchen
+
 
 class OrderDishRelation(models.Model):
     dish = models.ForeignKey(Dish, on_delete=models.CASCADE)
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
-    dish_modifiers = models.ManyToManyField(DishModifieres)
+    dish_modifiers = models.ManyToManyField(DishModifier)
