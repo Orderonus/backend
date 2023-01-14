@@ -6,18 +6,22 @@ from django.http.response import HttpResponse, JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 from django.contrib.auth.decorators import login_required
 
-from .models import Order, OrderDishRelation, Dish, DishModifier
+from .models import Order, OrderDishRelation, Dish, DishModifier, Store
+from .utils import get_store
 
 
 # Create your views here.
 @require_GET
 @login_required
-def orders(_: HttpRequest) -> HttpResponse:
+def orders(request: HttpRequest, store_id: int) -> HttpResponse:
     """Retrive the orders from the database"""
+    store = get_store(request.user, store_id)
+    if store is None:
+        return JsonResponse({"error": "Store not found"}, status=404)
 
     # Gets the orders from the past day
     pending_orders = (
-        Order.objects.filter(created_at__contains=datetime.today().date())
+        Order.objects.filter(created_at__contains=datetime.today().date(), store=store)
         .order_by("created_at")
         .all()
     )
@@ -30,10 +34,14 @@ def orders(_: HttpRequest) -> HttpResponse:
 
 @require_GET
 @login_required
-def order_by_id(request: HttpRequest, order_id: int) -> HttpResponse:
+def order_by_id(request: HttpRequest, store_id: int, order_id: int) -> HttpResponse:
     """Retrive the order by id from the database"""
+    store = get_store(request.user, store_id)
+    if store is None:
+        return JsonResponse({"error": "Store not found"}, status=404)
+
     order_id: int = request.POST.get("order_id")
-    order = Order.objects.get(id=order_id)
+    order = Order.objects.filter(id=order_id, store=store).get()
     if order is None:
         return JsonResponse({"error": "Order not found"}, status=404)
 
@@ -51,14 +59,18 @@ def order_by_id(request: HttpRequest, order_id: int) -> HttpResponse:
 
 @require_POST
 @login_required
-def complete_order(request: HttpRequest, order_id: int) -> HttpResponse:
+def complete_order(request: HttpRequest, store_id: int, order_id: int) -> HttpResponse:
     """Mark the order as complete"""
+    store = get_store(store_id)
+    if store is None:
+        return JsonResponse({"error": "Store not found"}, status=404)
+
     post_dict = json.loads(request.body)
     is_completed = post_dict.get("is_completed", None)
     if is_completed is None:
         return JsonResponse({"error": "Missing parameter"}, status=400)
     try:
-        order = Order.objects.get(id=order_id)
+        order = Order.objects.filter(id=order_id, store=store).get()
     except Order.DoesNotExist:
         return JsonResponse({"error": "Order not found"}, status=404)
 
@@ -70,8 +82,12 @@ def complete_order(request: HttpRequest, order_id: int) -> HttpResponse:
 
 @require_POST
 @login_required
-def available(request: HttpRequest, dish_id: int) -> HttpResponse:
+def available(request: HttpRequest, store_id: int, dish_id: int) -> HttpResponse:
     """Mark the dish as available / unavailable"""
+    store = get_store(request.user, store_id)
+    if store is None:
+        return JsonResponse({"error": "Store not found"}, status=404)
+
     post_dict = json.loads(request.body)
     is_available = post_dict.get("is_available", None)
 
@@ -79,7 +95,7 @@ def available(request: HttpRequest, dish_id: int) -> HttpResponse:
         return JsonResponse({"error": "Missing parameter"}, status=400)
 
     try:
-        dish = Dish.objects.get(id=dish_id)
+        dish = Dish.objects.filter(id=dish_id, store=store).get()
     except Dish.DoesNotExist:
         return JsonResponse({"error": "Dish not found"}, status=404)
 
@@ -90,7 +106,7 @@ def available(request: HttpRequest, dish_id: int) -> HttpResponse:
 
 @require_POST
 @login_required
-def add_order(request: HttpRequest) -> HttpResponse:
+def add_order(request: HttpRequest, store_id: int) -> HttpResponse:
     """Adds the order to the database"""
     # TODO Complete add order API.
     return JsonResponse()
@@ -98,15 +114,28 @@ def add_order(request: HttpRequest) -> HttpResponse:
 
 @require_GET
 @login_required
-def get_dishes(request: HttpRequest) -> HttpResponse:
+def get_dishes(request: HttpRequest, store_id: int) -> HttpResponse:
     """Gets the possible dishes"""
-    return JsonResponse({"data": list(map(lambda x: x.to_dict(), Dish.objects.all()))})
+    store = get_store(request.user, store_id)
+    if store is None:
+        return JsonResponse({"error": "Store not found"}, status=404)
+    return JsonResponse(
+        {
+            "data": list(
+                map(lambda x: x.to_dict(), Dish.objects.filter(store=store).all())
+            )
+        }
+    )
 
 
 @require_POST
 @login_required
-def add_dishes(request: HttpRequest) -> HttpResponse:
+def add_dishes(request: HttpRequest, store_id: int) -> HttpResponse:
     """Creates a new dish and adds it into the database"""
+    store = get_store(request.user, store_id)
+    if store is None:
+        return JsonResponse({"error": "Store not found"}, status=404)
+
     post_dict = json.loads(request.body)
     name = post_dict.get("name", None)
     price = post_dict.get("price", None)
@@ -132,6 +161,7 @@ def add_dishes(request: HttpRequest) -> HttpResponse:
         description=description,
         image=image,
         is_available=is_available,
+        store=store,
     )
     mod_objs = []
     for modifier in modifiers:
@@ -149,10 +179,13 @@ def add_dishes(request: HttpRequest) -> HttpResponse:
 
 @require_POST
 @login_required
-def edit_dish(request: HttpRequest, dish_id: int) -> HttpResponse:
+def edit_dish(request: HttpRequest, store_id: int, dish_id: int) -> HttpResponse:
     """Edits the dish"""
+    store = get_store(request.user, store_id)
+    if store is None:
+        return JsonResponse({"error": "Store not found"}, status=404)
     try:
-        dish = Dish.objects.get(id=dish_id)
+        dish = Dish.objects.get(id=dish_id, store=store)
     except Dish.DoesNotExist:
         return JsonResponse({"error": "Dish not found"}, status=404)
 
@@ -175,10 +208,13 @@ def edit_dish(request: HttpRequest, dish_id: int) -> HttpResponse:
 
 @require_POST
 @login_required
-def delete_dish(request: HttpRequest, dish_id: int) -> HttpResponse:
+def delete_dish(request: HttpRequest, store_id: int, dish_id: int) -> HttpResponse:
     """Deletes the dish"""
+    store = get_store(request.user, store_id)
+    if store is None:
+        return JsonResponse({"error": "Store not found"}, status=404)
     try:
-        dish = Dish.objects.get(id=dish_id)
+        dish = Dish.objects.get(id=dish_id, store=store)
     except Dish.DoesNotExist:
         return JsonResponse({"error": "Dish not found"}, status=404)
 
@@ -188,10 +224,15 @@ def delete_dish(request: HttpRequest, dish_id: int) -> HttpResponse:
 
 @require_POST
 @login_required
-def add_dish_modifier(request: HttpRequest, dish_id: int) -> HttpResponse:
+def add_dish_modifier(
+    request: HttpRequest, store_id: int, dish_id: int
+) -> HttpResponse:
     """Adds a modifier to the dish"""
+    store = get_store(request.user, store_id)
+    if store is None:
+        return JsonResponse({"error": "Store not found"}, status=404)
     try:
-        dish = Dish.objects.get(id=dish_id)
+        dish = Dish.objects.get(id=dish_id, store=store)
     except Dish.DoesNotExist:
         return JsonResponse({"error": "Dish not found"}, status=404)
 
@@ -210,3 +251,36 @@ def add_dish_modifier(request: HttpRequest, dish_id: int) -> HttpResponse:
     )
     modifier.save()
     return JsonResponse({"data": "Modifier added successfully"})
+
+
+@require_GET
+@login_required
+def get_stores(request: HttpRequest) -> HttpResponse:
+    """Gets the stores"""
+    return JsonResponse({"data": list(map(lambda x: x.to_dict(), Store.objects.all()))})
+
+
+@require_POST
+@login_required
+def add_store(request: HttpRequest) -> HttpResponse:
+    """Adds a store"""
+    post_dict = json.loads(request.body)
+    name = post_dict.get("name", None)
+    image = post_dict.get("image", None)
+    description = post_dict.get("description", "")
+
+    if name is None:
+        return JsonResponse({"error": "Missing parameters"}, status=400)
+
+    if Store.objects.filter(name=name).exists():
+        return JsonResponse({"error": "Store already exists"}, status=400)
+
+    store = Store.objects.create(
+        name=name,
+        image=image,
+        description=description,
+        user=request.user,
+    )
+    store.save()
+
+    return JsonResponse({"data": "Store added successfully"})

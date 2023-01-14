@@ -1,10 +1,29 @@
 from django.db import models
+from django.contrib.auth.models import User
 from typing import Dict, Any
+
+
+class Store(models.Model):
+    id = models.AutoField(primary_key=True)
+    name = models.CharField(max_length=100)
+    description = models.CharField(max_length=1000)
+    image = models.ImageField(upload_to="stores", blank=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    def to_dict(self: "Store") -> Dict[str, Any]:
+        """Serialize the store to a dictionary"""
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "image": self.image.url if self.image else None,
+        }
 
 
 # Create your models here.
 class Dish(models.Model):
     id = models.AutoField(primary_key=True)
+    store = models.ForeignKey(Store, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     price = models.BigIntegerField()
     description = models.CharField(max_length=1000)
@@ -45,6 +64,7 @@ class DishModifier(models.Model):
 class Order(models.Model):
     id = models.AutoField(primary_key=True)
     created_at = models.DateTimeField()
+    store = models.ForeignKey(Store, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     isOnline = models.BooleanField()
     isCompleted = models.BooleanField()  # IsComplete / AtKitchen

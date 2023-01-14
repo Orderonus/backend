@@ -25,19 +25,44 @@ from .views import (
     order_by_id,
     delete_dish,
     add_dish_modifier,
+    get_stores,
+    add_store,
 )
 
 urlpatterns = [
+    # Stores
+    path("stores/", get_stores, name="stores"),
+    path("stores/add", add_store, name="add_store"),
     # Orders
-    path("orders/", orders, name="orders"),
-    path("orders/add", add_order, name="add_order"),
-    path("orders/<int:order_id>/", order_by_id, name="order_by_id"),
-    path("orders/<int:order_id>/complete", complete_order, name="complete_order"),
+    path("stores/<int:store_id>/orders/", orders, name="orders"),
+    path("stores/<int:store_id>/orders/add", add_order, name="add_order"),
+    path(
+        "stores/<int:store_id>/orders/<int:order_id>/", order_by_id, name="order_by_id"
+    ),
+    path(
+        "stores/<int:store_id>/orders/<int:order_id>/complete",
+        complete_order,
+        name="complete_order",
+    ),
     # Dishes
-    path("dishes/", get_dishes, name="get_dishes"),
-    path("dishes/add", add_dishes, name="add_dishes"),
-    path("dishes/<int:dish_id>/edit", edit_dish, name="edit_dish"),
-    path("dishes/<int:dish_id>/delete", delete_dish, name="delete dish"),
-    path("dishes/<int:dish_id>/available", available, name="available"),
-    path("dishes/<int:dish_id>/modifier/add", add_dish_modifier, name="Add modifier"),
+    path("stores/<int:store_id>/dishes/", get_dishes, name="get_dishes"),
+    path("stores/<int:store_id>/dishes/add", add_dishes, name="add_dishes"),
+    path(
+        "stores/<int:store_id>/dishes/<int:dish_id>/edit", edit_dish, name="edit_dish"
+    ),
+    path(
+        "stores/<int:store_id>/dishes/<int:dish_id>/delete",
+        delete_dish,
+        name="delete dish",
+    ),
+    path(
+        "stores/<int:store_id>/dishes/<int:dish_id>/available",
+        available,
+        name="available",
+    ),
+    path(
+        "stores/<int:store_id>/dishes/<int:dish_id>/modifier/add",
+        add_dish_modifier,
+        name="Add modifier",
+    ),
 ]
