@@ -3,7 +3,7 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from django.utils import timezone
 
-from .models import Order, Dish, DishModifier, Store
+from .models import Order, Dish, DishModifier, Store, OrderDishRelation
 
 
 # Create your tests here.
@@ -160,44 +160,279 @@ class GetStoreTest(StoreTestCase):
         )
 
 
+class AddOrderTest(StoreTestCase):
+    def setUp(self: "StoreTestCase") -> None:
+        super().setUp()
+        self.dish = Dish.objects.create(
+            name="Test Dish",
+            description="Test Description",
+            price=100,
+            store=self.store,
+        )
+        self.dish.save()
+        self.dishMod = DishModifier.objects.create(
+            name="Test Dish Mod",
+            price=100,
+            dish=self.dish,
+        )
+
+    def tearDown(self: "StoreTestCase") -> None:
+        Dish.objects.all().delete()
+        Order.objects.all().delete()
+        OrderDishRelation.objects.all().delete()
+        return super().tearDown()
+
+    def test_add_order_fail_no_login(self) -> None:
+        """Test adding an order without logging in"""
+        response = self.client.post(
+            f"/api/stores/{self.store.id}/orders/add",
+            {
+                "is_online": True,
+                "is_completed": False,
+                "dishes": [
+                    {
+                        "id": self.dish.id,
+                        "quantity": 1,
+                        "modifiers": [
+                            self.dishMod.id,
+                        ],
+                        "other_modifiers": "Test Other Comments",
+                    }
+                ],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 302, response.content)
+
+    def test_add_order_fail_method_not_allowed(self) -> None:
+        """Test adding an order with wrong method"""
+        response = self.client.get(
+            f"/api/stores/{self.store.id}/orders/add",
+            {
+                "is_online": True,
+                "is_completed": False,
+                "dishes": [
+                    {
+                        "id": self.dish.id,
+                        "quantity": 1,
+                        "modifiers": [
+                            self.dishMod.id,
+                        ],
+                    }
+                ],
+            },
+        )
+        self.assertEqual(response.status_code, 405, response.content)
+
+    def test_add_order_fail_no_dishes(self) -> None:
+        """Test adding an order without dishes"""
+        self.assertTrue(self.login(), "Failed to log in")
+        response = self.client.post(
+            f"/api/stores/{self.store.id}/orders/add",
+            {
+                "is_online": True,
+                "is_completed": False,
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(
+            response.status_code,
+            400,
+            f"Suppose to not add order: {response.content}",
+        )
+        self.assertEqual(
+            response.json(),
+            {
+                "error": "Missing parameter",
+            },
+        )
+
+    def test_add_order_fail_empty_dishes(self) -> None:
+        """Test adding an order with empty dishes"""
+        self.assertTrue(self.login(), "Failed to log in")
+        response = self.client.post(
+            f"/api/stores/{self.store.id}/orders/add",
+            {
+                "is_online": True,
+                "is_completed": False,
+                "dishes": [],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(
+            response.status_code,
+            400,
+            f"Suppose to not add order: {response.content}",
+        )
+        self.assertEqual(
+            response.json(),
+            {
+                "error": "No dishes in order",
+            },
+        )
+
+    def test_add_order_fail_no_dish_id(self) -> None:
+        """Test adding an order with no dish id"""
+        self.assertTrue(self.login(), "Failed to log in")
+        response = self.client.post(
+            f"/api/stores/{self.store.id}/orders/add",
+            {
+                "is_online": True,
+                "is_completed": False,
+                "dishes": [
+                    {
+                        "quantity": 1,
+                        "modifiers": [
+                            self.dishMod.id,
+                        ],
+                    }
+                ],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(
+            response.status_code,
+            404,
+            f"Suppose to not add order: {response.content}",
+        )
+        self.assertEqual(
+            response.json(),
+            {
+                "error": "Dish not found",
+            },
+        )
+
+    def test_add_order_fail_no_dish_quantity(self) -> None:
+        """Test adding an order with no dish quantity"""
+        self.assertTrue(self.login(), "Failed to log in")
+        response = self.client.post(
+            f"/api/stores/{self.store.id}/orders/add",
+            {
+                "is_online": True,
+                "is_completed": False,
+                "dishes": [
+                    {
+                        "id": self.dish.id,
+                        "modifiers": [
+                            self.dishMod.id,
+                        ],
+                    }
+                ],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(
+            response.status_code,
+            400,
+            f"Suppose to not add order: {response.content}",
+        )
+        self.assertEqual(
+            response.json(),
+            {
+                "error": "Missing parameter",
+            },
+        )
+
+    def test_add_order_success_no_dish_modifier(self) -> None:
+        """Test no dish modifier"""
+        self.assertTrue(self.login(), "Failed to log in")
+        response = self.client.post(
+            f"/api/stores/{self.store.id}/orders/add",
+            {
+                "is_online": True,
+                "is_completed": False,
+                "dishes": [
+                    {
+                        "id": self.dish.id,
+                        "quantity": 1,
+                    }
+                ],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(
+            response.status_code,
+            200,
+            f"Suppose to add order: {response.content}",
+        )
+        self.assertEqual(
+            response.json(),
+            {
+                "data": "Order added successfully",
+            },
+        )
+
+        self.assertEqual(Order.objects.count(), 1)
+        self.assertEqual(OrderDishRelation.objects.count(), 1)
+
+    def test_add_order_with_dish_modifier(self) -> None:
+        """Test adding an order with dish modifier"""
+        self.assertTrue(self.login(), "Failed to log in")
+        response = self.client.post(
+            f"/api/stores/{self.store.id}/orders/add",
+            {
+                "is_online": True,
+                "is_completed": False,
+                "dishes": [
+                    {
+                        "id": self.dish.id,
+                        "quantity": 1,
+                        "modifiers": [
+                            self.dishMod.id,
+                        ],
+                    }
+                ],
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(
+            response.status_code,
+            200,
+            f"Suppose to add order: {response.content}",
+        )
+        self.assertEqual(
+            response.json(),
+            {
+                "data": "Order added successfully",
+            },
+        )
+        self.assertEqual(Order.objects.count(), 1)
+        self.assertEqual(OrderDishRelation.objects.count(), 1)
+
+
 class GetOrdersTest(StoreTestCase):
     def setUp(self: "GetOrdersTest") -> None:
         super().setUp()
         now = timezone.now()
         self.physical_order = Order.objects.create(
-            name="Physical Order",
-            isOnline=False,
-            isCompleted=False,
+            is_online=False,
+            is_completed=False,
             created_at=now - timedelta(minutes=2),
             store=self.store,
         )
 
         self.online_order = Order.objects.create(
-            name="Online Order",
-            isOnline=True,
-            isCompleted=False,
+            is_online=True,
+            is_completed=False,
             created_at=now - timedelta(minutes=1),
             store=self.store,
         )
 
         self.completed_order = Order.objects.create(
-            name="Completed Order",
-            isOnline=True,
-            isCompleted=True,
+            is_online=True,
+            is_completed=True,
             created_at=now - timedelta(minutes=4),
             store=self.store,
         )
 
         self.old_order = Order.objects.create(
-            name="Old Order",
-            isOnline=True,
-            isCompleted=True,
+            is_online=True,
+            is_completed=True,
             created_at=now - timedelta(days=1),
             store=self.store,
         )
 
     def tearDown(self: "GetOrdersTest") -> None:
-        Order.objects.all().delete()
         return super().tearDown()
 
     def save_all_orders(self) -> None:
@@ -214,6 +449,7 @@ class GetOrdersTest(StoreTestCase):
 
     def test_retrieve_orders_success(self: "GetOrdersTest") -> None:
         """Check if the correct orders are shown"""
+        self.save_all_orders()
         self.assertTrue(self.login(), "Login failed")
         response = self.client.get(f"/api/stores/{self.store.id}/orders/")
         self.assertEqual(response.status_code, 200, response.content)
@@ -233,9 +469,8 @@ class CompleteOrderTest(StoreTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.order = Order.objects.create(
-            name="Order",
-            isOnline=True,
-            isCompleted=False,
+            is_online=True,
+            is_completed=False,
             created_at=timezone.now(),
             store=self.store,
         )
@@ -247,7 +482,7 @@ class CompleteOrderTest(StoreTestCase):
 
     def test_complete_order_fail_no_login(self) -> None:
         """Check if users who are not logged in cannot complete the order"""
-        self.assertFalse(Order.objects.all().get().isCompleted)
+        self.assertFalse(Order.objects.all().get().is_completed)
         response = self.client.post(
             f"/api/stores/{self.store.id}/orders/{self.order.id}/complete",
             {

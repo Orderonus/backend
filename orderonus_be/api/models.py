@@ -47,6 +47,7 @@ class Dish(models.Model):
 
 
 class DishModifier(models.Model):
+    id = models.AutoField(primary_key=True)
     dish = models.ForeignKey(Dish, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     price = models.BigIntegerField()
@@ -55,6 +56,7 @@ class DishModifier(models.Model):
     def to_dict(self: "DishModifier") -> Dict[str, Any]:
         """Serialize the dish modifier to a dictionary"""
         return {
+            "id": self.id,
             "name": self.name,
             "price": self.price,
             "is_available": self.is_available,
@@ -65,29 +67,38 @@ class Order(models.Model):
     id = models.AutoField(primary_key=True)
     created_at = models.DateTimeField()
     store = models.ForeignKey(Store, on_delete=models.CASCADE)
-    name = models.CharField(max_length=100)
-    isOnline = models.BooleanField()
-    isCompleted = models.BooleanField()  # IsComplete / AtKitchen
+    is_online = models.BooleanField()
+    is_completed = models.BooleanField()
 
     def to_dict(self: "Order") -> Dict[str, Any]:
         """Serialize the order to a dictionary"""
         return {
             "id": self.id,
             "created_at": self.created_at.astimezone().isoformat(),
-            "name": self.name,
-            "isOnline": self.isOnline,
-            "isCompleted": self.isCompleted,
+            "is_online": self.is_online,
+            "is_completed": self.is_completed,
+            "dishes": list(
+                map(
+                    lambda x: x.to_dict(),
+                    OrderDishRelation.objects.filter(order=self).all(),
+                )
+            ),
         }
 
 
 class OrderDishRelation(models.Model):
     dish = models.ForeignKey(Dish, on_delete=models.CASCADE)
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
-    dish_modifiers = models.ManyToManyField(DishModifier)
+    modifiers = models.ManyToManyField(DishModifier)
+    quantity = models.PositiveBigIntegerField()
+    other_comments = models.CharField(max_length=1000)
 
     def to_dict(self: "OrderDishRelation") -> Dict[str, Any]:
         """Convert the relation to a dictionary"""
         return {
             "dish": self.dish.to_dict(),
-            "order": self.order.to_dict(),
+            "quantity": self.quantity,
+            "dish_modifiers": list(
+                map(lambda x: x.to_dict(), self.modifiers.all())
+            ),
         }

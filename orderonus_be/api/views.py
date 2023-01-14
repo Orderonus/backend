@@ -1,13 +1,17 @@
 import json
 from datetime import datetime
 
+from django.db import transaction
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse, JsonResponse
 from django.views.decorators.http import require_GET, require_POST
 from django.contrib.auth.decorators import login_required
+from django.utils.timezone import now
+from django.db.utils import IntegrityError
 
 from .models import Order, OrderDishRelation, Dish, DishModifier, Store
 from .utils import get_store
+from typing import List
 
 
 # Create your views here.
@@ -21,7 +25,7 @@ def orders(request: HttpRequest, store_id: int) -> HttpResponse:
 
     # Gets the orders from the past day
     pending_orders = (
-        Order.objects.filter(created_at__contains=datetime.today().date(), store=store)
+        Order.objects.filter(created_at__contains=now().date(), store=store)
         .order_by("created_at")
         .all()
     )
@@ -61,7 +65,7 @@ def order_by_id(request: HttpRequest, store_id: int, order_id: int) -> HttpRespo
 @login_required
 def complete_order(request: HttpRequest, store_id: int, order_id: int) -> HttpResponse:
     """Mark the order as complete"""
-    store = get_store(store_id)
+    store = get_store(request.user, store_id)
     if store is None:
         return JsonResponse({"error": "Store not found"}, status=404)
 
@@ -108,8 +112,57 @@ def available(request: HttpRequest, store_id: int, dish_id: int) -> HttpResponse
 @login_required
 def add_order(request: HttpRequest, store_id: int) -> HttpResponse:
     """Adds the order to the database"""
-    # TODO Complete add order API.
-    return JsonResponse()
+    store = get_store(request.user, store_id)
+    if store is None:
+        return JsonResponse({"error": "Store not found"}, status=404)
+
+    post_dict = json.loads(request.body)
+    isOnline = post_dict.get("isOnline", False)
+    isCompleted = post_dict.get("isCompleted", False)
+    dishes = post_dict.get("dishes", None)
+    if dishes is None:
+        return JsonResponse({"error": "Missing parameter"}, status=400)
+
+    if len(dishes) == 0:
+        return JsonResponse({"error": "No dishes in order"}, status=400)
+
+    order = Order.objects.create(
+        is_online=isOnline,
+        is_completed=isCompleted,
+        store=store,
+        created_at=now(),
+    )
+    relations: List[OrderDishRelation] = []
+    for dish in dishes:
+        try:
+            dish_obj = Dish.objects.filter(id=dish.get("id")).get()
+        except Dish.DoesNotExist:
+            return JsonResponse({"error": "Dish not found"}, status=404)
+
+        modifiers = dish.get("modifier", [])
+        mods = list(
+            map(
+                lambda x: DishModifier.objects.filter(dish=dish_obj, id=x).get(),
+                modifiers,
+            )
+        )
+        quantity = dish.get("quantity", None)
+        if quantity is None:
+            return JsonResponse({"error": "Missing parameter"}, status=400)
+        relation = OrderDishRelation.objects.create(
+            order=order,
+            dish=dish_obj,
+            quantity=dish.get("quantity"),
+            other_comments=dish.get("other_comments", ""),
+        )
+        relation.modifiers.set(mods)
+        relations.append(relation)
+
+    order.save()
+    for r in relations:
+        r.save()
+
+    return JsonResponse({"data": "Order added successfully"})
 
 
 @require_GET
