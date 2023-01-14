@@ -115,43 +115,32 @@ class CompleteOrderTest(TestCase):
 
     def test_complete_order_fail_no_login(self) -> None:
         """Check if users who are not logged in cannot complete the order"""
+        self.assertFalse(Order.objects.all().get().isCompleted)
         response = self.client.post(
-            f"/api/complete_order/",
+            f"/api/orders/{self.order.id}/complete",
             {
-                "order_id": self.order.id,
                 "is_completed": True,
             },
+            content_type="application/json",
         )
         self.assertEqual(response.status_code, 302)
-
-    def test_complete_order_fail_empty_order(self) -> True:
-        """Check if users who are logged in cannot complete an order that does not exist"""
-        self.assertTrue(self.login(), "Login failed")
-        response = self.client.post(
-            f"/api/complete_order/",
-            {
-                "is_completed": True,
-            },
-        )
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), {"error": "Missing parameters"})
 
     def test_complete_order_fail_order_does_not_exist(self) -> None:
         """Check if users who are logged in cannot complete an order that does not exist"""
         self.assertTrue(self.login(), "Login failed")
         response = self.client.post(
-            f"/api/complete_order/",
+            f"/api/orders/{self.order.id + 1}/complete",
             {
-                "order_id": self.order.id + 1,
                 "is_completed": True,
             },
+            content_type="application/json",
         )
         self.assertEqual(response.status_code, 404)
-        self.assertEqual(response.json(), {"error": "Order not found"})
 
 
 class DishAvailableTest(TestCase):
     def setUp(self: "DishAvailableTest") -> None:
+        self.endpoint = "/api/dishes/{}/available"
         self.maxDiff = None
         self.password = "password"
         self.username = "username"
@@ -179,30 +168,40 @@ class DishAvailableTest(TestCase):
     def test_update_available_fail_no_login(self) -> None:
         """Check if users who are not logged in cannot update the dish"""
         response = self.client.post(
-            f"/api/available/", {"dish_id": self.dish.id, "is_available": False}
+            self.endpoint.format(self.dish.id),
+            {"is_available": False},
         )
         self.assertEqual(response.status_code, 302)
-
-    def test_update_available_fail_no_dish(self) -> None:
-        """Check if users who are logged in cannot update a dish that does not exist"""
-        self.assertTrue(self.login(), "Login failed")
-        response = self.client.post(f"/api/available/", {"is_available": False})
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), {"error": "Missing parameters"})
 
     def test_update_available_fail_no_availability(self) -> None:
         """Check if users who are logged in cannot update a dish without specifying availability"""
         self.assertTrue(self.login(), "Login failed")
-        response = self.client.post(f"/api/available/", {"dish_id": self.dish.id})
+        response = self.client.post(
+            self.endpoint.format(self.dish.id),
+            {},
+            content_type="application/json",
+        )
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json(), {"error": "Missing parameters"})
+        self.assertEqual(response.json(), {"error": "Missing parameter"})
+
+    def test_update_available_fail_invalid_id(self) -> None:
+        """Check if users who are logged in cannot update a dish with an invalid id"""
+        self.assertTrue(self.login(), "Login failed")
+        response = self.client.post(
+            self.endpoint.format(self.dish.id + 1),
+            {"is_available": False},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 404)
 
     def test_update_available_success(self) -> None:
         """Check if users who are logged in can update the dish"""
         self.assertTrue(self.login(), "Login failed")
         self.assertTrue(Dish.objects.filter(id=self.dish.id).get().is_available)
         response = self.client.post(
-            f"/api/available/", {"dish_id": self.dish.id, "is_available": False}
+            self.endpoint.format(self.dish.id),
+            {"is_available": False},
+            content_type="application/json",
         )
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"data": "Dish updated successfully"})
@@ -212,6 +211,7 @@ class DishAvailableTest(TestCase):
 
 class GetDishTest(TestCase):
     def setUp(self) -> None:
+        self.endpoint = "/api/dishes/"
 
         # Create dish 1
         self.name = "rawoman"
@@ -266,13 +266,13 @@ class GetDishTest(TestCase):
 
     def test_get_all_dishes_fail_no_login(self) -> None:
         """Check if users who are not logged in cannot see the dishes"""
-        response = self.client.get("/api/get_dishes/")
+        response = self.client.get(self.endpoint)
         self.assertEqual(response.status_code, 302)
 
     def test_get_all_dishes_success(self) -> None:
         """Check if the correct dishes are shown"""
         self.assertTrue(self.login(), "Login failed")
-        response = self.client.get("/api/get_dishes/")
+        response = self.client.get(self.endpoint)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
@@ -287,6 +287,7 @@ class GetDishTest(TestCase):
 
 class AddDishTest(TestCase):
     def setUp(self) -> None:
+        self.endpoint = "/api/dishes/add"
         self.name = "ramen"
         self.price = 10000
         self.description = "A bowl of ramen"
@@ -329,14 +330,14 @@ class AddDishTest(TestCase):
 
     def test_add_dish_fail_no_login(self) -> None:
         """Test if adding a dish fails when not logged in"""
-        response = self.client.post("/api/add_dishes/")
+        response = self.client.post(self.endpoint)
         self.assertEqual(response.status_code, 302)
 
     def test_add_dish_fail_same_name(self) -> None:
         """Test if adding a dish fails when the name already exists"""
         self.assertTrue(self.login(), "Login failed")
         response = self.client.post(
-            "/api/add_dishes/",
+            self.endpoint,
             {
                 "name": self.name,
                 "price": self.price,
@@ -354,7 +355,7 @@ class AddDishTest(TestCase):
         """Test if adding a dish succeeds"""
         self.assertTrue(self.login(), "Login failed")
         response = self.client.post(
-            "/api/add_dishes/",
+            self.endpoint,
             {
                 "name": "new dish",
                 "price": self.price,
@@ -370,7 +371,7 @@ class AddDishTest(TestCase):
         """Test if adding a dish with modifiers fails"""
         self.assertTrue(self.login(), "Login failed")
         response = self.client.post(
-            "/api/add_dishes/",
+            self.endpoint,
             {
                 "name": "new dish",
                 "price": self.price,

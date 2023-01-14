@@ -1,5 +1,5 @@
-from datetime import datetime
 import json
+from datetime import datetime
 
 from django.http.request import HttpRequest
 from django.http.response import HttpResponse, JsonResponse
@@ -12,7 +12,7 @@ from .models import Order, OrderDishRelation, Dish, DishModifier
 # Create your views here.
 @require_GET
 @login_required
-def orders(request: HttpRequest) -> HttpResponse:
+def orders(_: HttpRequest) -> HttpResponse:
     """Retrive the orders from the database"""
 
     # Gets the orders from the past day
@@ -51,12 +51,12 @@ def order_by_id(request: HttpRequest, order_id: int) -> HttpResponse:
 
 @require_POST
 @login_required
-def complete_order(request: HttpRequest) -> HttpResponse:
+def complete_order(request: HttpRequest, order_id: int) -> HttpResponse:
     """Mark the order as complete"""
-    order_id = request.POST.get("order_id", None)
-    is_completed = request.POST.get("is_completed", None)
-    if None in [order_id, is_completed]:
-        return JsonResponse({"error": "Missing parameters"}, status=400)
+    post_dict = json.loads(request.body)
+    is_completed = post_dict.get("is_completed", None)
+    if is_completed is None:
+        return JsonResponse({"error": "Missing parameter"}, status=400)
     try:
         order = Order.objects.get(id=order_id)
     except Order.DoesNotExist:
@@ -70,14 +70,17 @@ def complete_order(request: HttpRequest) -> HttpResponse:
 
 @require_POST
 @login_required
-def available(request: HttpRequest) -> HttpResponse:
+def available(request: HttpRequest, dish_id: int) -> HttpResponse:
     """Mark the dish as available / unavailable"""
-    dish_id = request.POST.get("dish_id", None)
-    is_available = request.POST.get("is_available", None)
-    if (dish_id is None) or (is_available is None):
-        return JsonResponse({"error": "Missing parameters"}, status=400)
-    dish = Dish.objects.get(id=dish_id)
-    if dish is None:
+    post_dict = json.loads(request.body)
+    is_available = post_dict.get("is_available", None)
+
+    if is_available is None:
+        return JsonResponse({"error": "Missing parameter"}, status=400)
+
+    try:
+        dish = Dish.objects.get(id=dish_id)
+    except Dish.DoesNotExist:
         return JsonResponse({"error": "Dish not found"}, status=404)
 
     dish.is_available = is_available
@@ -89,6 +92,7 @@ def available(request: HttpRequest) -> HttpResponse:
 @login_required
 def add_order(request: HttpRequest) -> HttpResponse:
     """Adds the order to the database"""
+    # TODO Complete add order API.
     return JsonResponse()
 
 
@@ -147,4 +151,62 @@ def add_dishes(request: HttpRequest) -> HttpResponse:
 @login_required
 def edit_dish(request: HttpRequest, dish_id: int) -> HttpResponse:
     """Edits the dish"""
-    return JsonResponse()
+    try:
+        dish = Dish.objects.get(id=dish_id)
+    except Dish.DoesNotExist:
+        return JsonResponse({"error": "Dish not found"}, status=404)
+
+    post_dict = json.loads(request.body)
+    name = post_dict.get("name", None)
+    if name is not None:
+        dish.name = name
+    price = post_dict.get("price", None)
+    if price is not None:
+        dish.price = price
+    description = post_dict.get("description", None)
+    if description is not None:
+        dish.description = description
+    image = post_dict.get("image", None)
+    if image is not None:
+        dish.image = image
+    dish.save()
+    return JsonResponse({"data": "Dish updated successfully"})
+
+
+@require_POST
+@login_required
+def delete_dish(request: HttpRequest, dish_id: int) -> HttpResponse:
+    """Deletes the dish"""
+    try:
+        dish = Dish.objects.get(id=dish_id)
+    except Dish.DoesNotExist:
+        return JsonResponse({"error": "Dish not found"}, status=404)
+
+    dish.delete()
+    return JsonResponse({"data": "Dish deleted successfully"})
+
+
+@require_POST
+@login_required
+def add_dish_modifier(request: HttpRequest, dish_id: int) -> HttpResponse:
+    """Adds a modifier to the dish"""
+    try:
+        dish = Dish.objects.get(id=dish_id)
+    except Dish.DoesNotExist:
+        return JsonResponse({"error": "Dish not found"}, status=404)
+
+    post_dict = json.loads(request.body)
+    name = post_dict.get("name", None)
+    price = post_dict.get("price", None)
+    is_available = post_dict.get("is_available", True)
+    if None in [name, price]:
+        return JsonResponse({"error": "Missing parameters"}, status=400)
+
+    modifier = DishModifier.objects.create(
+        dish=dish,
+        name=name,
+        price=price,
+        is_available=is_available,
+    )
+    modifier.save()
+    return JsonResponse({"data": "Modifier added successfully"})

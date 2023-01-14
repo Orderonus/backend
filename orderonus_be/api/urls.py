@@ -23,15 +23,21 @@ from .views import (
     add_dishes,
     edit_dish,
     order_by_id,
+    delete_dish,
+    add_dish_modifier,
 )
 
 urlpatterns = [
+    # Orders
     path("orders/", orders, name="orders"),
-    path("complete_order/", complete_order, name="complete_order"),
-    path("available/", available, name="available"),
-    path("add_order/", add_order, name="add_order"),
-    path("get_dishes/", get_dishes, name="get_dishes"),
-    path("add_dishes/", add_dishes, name="add_dishes"),
-    path("edit_dish/<int:dish_id>/", edit_dish, name="edit_dish"),
+    path("orders/add", add_order, name="add_order"),
     path("orders/<int:order_id>/", order_by_id, name="order_by_id"),
+    path("orders/<int:order_id>/complete", complete_order, name="complete_order"),
+    # Dishes
+    path("dishes/", get_dishes, name="get_dishes"),
+    path("dishes/add", add_dishes, name="add_dishes"),
+    path("dishes/<int:dish_id>/edit", edit_dish, name="edit_dish"),
+    path("dishes/<int:dish_id>/delete", delete_dish, name="delete dish"),
+    path("dishes/<int:dish_id>/available", available, name="available"),
+    path("dishes/<int:dish_id>/modifier/add", add_dish_modifier, name="Add modifier"),
 ]
